@@ -16,12 +16,5 @@ using namespace std;
 
 int main()
 {
-	char t;
-	stringstream test("asfsadfsadf");
-	while (!test.eof())
-	{
-		test >> t;
-		cout << t;
-	}
-	return 0;
+
 }

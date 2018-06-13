@@ -4,21 +4,25 @@ Using movielen lates small, ratings.csv(recording user behaviors) and movies.csv
 ## Algorithm - ItemCF
 We have two steps:
 0. calculate the vitality.
-    $$
-        V_u
-    $$
+     $$
+         V_u
+     $$
+
 1. calculate the similarity of the items
     $$
-        w_{ij} = \frac{\sum_{u \in N(i) \cap N(j)}}{\frac{1}{\sqrt{|N(i)||N(j)|}}}
-    $$ 
+    w_{ij} = \frac{\sum_{u \in N(i) \cap N(j)}{\frac{1}{log(1+|V(u)|)}}}{\sqrt{|N(i)||N(j)|}}
+    $$
+
 2. normalization of weights
     $$
-        w_{ij}' = \frac{w_{ij}}{\max_j w_{ij}}
+    w_{ij}' = \frac{w_{ij}}{\max_j w_{ij}}
     $$
+
 3. calculate the preference of users
     $$
         p_{ij} = \sum_{i \in N(i)\cap S(j,k)}w_{ji}r_{ui}
     $$
+
 ## Evaluation
 Split the data set to train set and test set.
 ## Libraries
