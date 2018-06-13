@@ -3,6 +3,7 @@
 Using movielen lates small, ratings.csv(recording user behaviors) and movies.csv(mapping movieId to movieName).
 ## Algorithm - ItemCF
 We have two steps:
+
 0. calculate the vitality.
      $$
          V_u
