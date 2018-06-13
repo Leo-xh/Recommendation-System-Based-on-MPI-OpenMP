@@ -229,7 +229,7 @@ int main(int argc, char const *argv[])
 	map<int, int> movieIDMap;
 	map<int, int> rMovieIDMap;
 	cout << "reading files...\n";
-	readDataset("D:\\dataset\\MoiveLens\\ml-latest-small\\ml-latest-small\\ratings.csv", "D:\\dataset\\MoiveLens\\ml-latest-small\\ml-latest-small\\movies.csv", ratings, movieMap, movieIDMap, rMovieIDMap);
+	readDataset("D:\\dataset\\MoiveLens\\ml-latest-small\\ml-latest-small\\trainRatings.csv", "D:\\dataset\\MoiveLens\\ml-latest-small\\ml-latest-small\\movies.csv", ratings, movieMap, movieIDMap, rMovieIDMap);
 	//buffers
 	int sizeOfUsers, sizeOfItems;
 	sizeOfUsers = ratings.size();
