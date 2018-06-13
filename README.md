@@ -2,7 +2,7 @@
 ## Dataset
 Using movielen lates small, ratings.csv(recording user behaviors) and movies.csv(mapping movieId to movieName).
 ## Algorithm - ItemCF
-We have two steps:
+We have steps:
 
 0. calculate the vitality.
      $$
