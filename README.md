@@ -21,7 +21,7 @@ We have steps:
 
 3. calculate the preference of users
     $$
-        p_{ij} = \sum_{i \in N(i)\cap S(j,k)}w_{ji}r_{ui}
+    p_{ij} = \sum_{i \in N(i)\cap S(j,k)}w_{ji}r_{ui}
     $$
 
 ## Evaluation
@@ -30,8 +30,8 @@ Split the data set to train set and test set.
 Using MPI to distribute jobs and OpenMp to parallelize the computation.
 
 ### MPI
-1. Distribute by keys of items(molded by rank) in step 1, when received, add up the data.
-2. Distribute by keys of users(molded by rank) in step 2, when received, gather the data. Pay attention to the format of topN items and topM reasons.
+1. Distribute by keys of items in step 1 and 2, each node(except for the master) calculate the similarity of sizeOfItem / numOfNodes items with all other items. Send a matrix of weights to the master. For the master, when data received, concate the data.
+2. The weight file is too big, so the calculation of preference won't be distributed.
 
 ### OpenMP
 Optimize the loop in calculating the neighbor of items and the conjunction of them, as well as the preference of items in the nodes.
