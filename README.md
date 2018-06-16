@@ -24,6 +24,24 @@ We have steps:
     p_{ij} = \sum_{i \in N(i)\cap S(j,k)}w_{ji}r_{ui}
     $$
 
+## Another choice of algorithm - Collaborative Filtering on Ratings
+1. the similarity of items - adjust cosine similarity
+    $$
+    w_{ij} = \frac{\sum_{u\in U}(r_{ui}-\bar{r_{i}})\times(r_{uj}-\bar{r_{j}})}{\sqrt{\sum_{u\in U}(r_{ui}-\bar{r_{i}})^2\sum_{u\in U}(r_{uj}-\bar{r_{j}})^2}}
+    $$
+2. predict the rating from user u to item i
+    $$
+    \hat{r_{ui}} = \bar{r_{i}} + \frac{\sum_{j\in S(i,K) \cap N(u)}w_{ij}(r_{uj}-\bar{r_i})}{\sum_{j\in S(i,K) \cap N(u)}|w_{ij}|}
+    $$
+
+## Model merge
+Model merge is a regress problem, here I choose a simple method that the models are added by weights, and the weights come from the least square method.
+1. how to merge?
+    $$
+    \hat{r} = \sum_{k=1}^{K}\alpha_k\hat{r}^{(k)}
+    $$
+2. how to determine the weights?
+    - split the train set to A_1 and A_2, so we can use least square method to calculate the weights.
 ## Evaluation
 Split the data set to train set and test set.
 ## Libraries
