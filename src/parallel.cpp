@@ -306,7 +306,7 @@ int main(int argc, char *argv[])
 		for (int i = 1; i < nodesNum; ++i)
 		{
 			cout << "\t collecting data from node " << i << " ...\n";
-			MPI_Send(nullptr, 0, MPI_DOUBLE, i, sizeOfItems, MPI_COMM_WORLD);
+			// MPI_Send(nullptr, 0, MPI_DOUBLE, i, sizeOfItems, MPI_COMM_WORLD);
 			{
 				if (i != nodesNum - 1) {
 					for (int j = 0; j < taskEachNode; ++j)
@@ -397,11 +397,13 @@ int main(int argc, char *argv[])
 		{
 			lines = sizeOfItems - taskEachNode * (nodesNum - 2);
 		}
-		MPI_Recv(nullptr, 0, MPI_DOUBLE, 0, sizeOfItems, MPI_COMM_WORLD, nullptr);
-		printf("node %d in %s sending weights to master...\n", rank, processorName);
+		// MPI_Recv(nullptr, 0, MPI_DOUBLE, 0, sizeOfItems, MPI_COMM_WORLD, nullptr);
 		for (int i = 0; i < lines; ++i)
 		{
 			MPI_Send(weightsBuffer + i * sizeOfItems, sizeOfItems, MPI_DOUBLE, 0, i + (rank - 1)*taskEachNode, MPI_COMM_WORLD);
+			if (i == 0) {
+				printf("node %d in %s sending weights to master...\n", rank, processorName);
+			}
 		}
 		// delete [] neighbor;
 		// for (int i = 0; i < taskEachNode; i++)
@@ -409,6 +411,10 @@ int main(int argc, char *argv[])
 		// 	delete [] collab[i];
 		// }
 		// delete [] collab;
+		ratings.clear();
+		movieIDMap.clear();
+		movieMap.clear();
+		rMovieIDMap.clear();
 	}
 
 	// for (int i = 0; i < taskEachNode; i++)
