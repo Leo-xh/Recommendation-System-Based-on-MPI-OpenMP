@@ -65,57 +65,67 @@ void readDataset(string ratingFileName, string movieMappingFile, map<int, map<in
 	movieMapFile.close();
 }
 
-void calNeighAndCollab(map<int, map<int, double>> &ratings, map<int, int> & movieIDMap, int * neighbor, double ** collab, double **weights, int sizeOfItems, int begin, int taskEachNode)
+void calNeighAndCollab(map<int, map<int, double>> &ratings, map<int, int> & rMovieIDMap, int * neighbor, double ** collab, double **weights, int sizeOfItems, int begin, int taskEachNode)
 {
-	// cout << "\t calculating neighbors and collaboratives...";
+
 	// clock_t begin = clock();
+	// calculating the averages that each user gives
+	double aveUser[ratings.size()];
 	for (map<int, map<int, double>>::iterator iter = ratings.begin(); iter != ratings.end(); ++iter)
 	{
-		// printf("user: %d\n", iter->first);
+		aveUser[iter->first] = 0;
 		for (map<int, double>::iterator subIter = iter->second.begin(); subIter != iter->second.end(); ++subIter)
 		{
-			neighbor[movieIDMap[subIter->first]]++;
-			if ((movieIDMap[subIter->first] >= begin) && (movieIDMap[subIter->first] < begin + taskEachNode))
+			aveUser[iter->first] += subIter->second;
+		}
+		aveUser /= iter->second.size();
+	}
+	// adjust cosine similarity
+	#pragma omp parallel for
+	for (int i = begin; i < begin + taskEachNode; ++i)
+	{
+		double tmpSumI = 0;
+		for (map<int, map<int, double>>::iterator iter = ratings.begin(); iter != ratings.end(); ++iter)
+		{
+			// printf("user: %d\n", iter->first);
+			if (iter->second.count(rMovieIDMap[i]) > 0)
 			{
-				for (map<int, double>::iterator subsIter = iter->second.begin(); subsIter != iter->second.end(); ++subsIter)
-				{
-					if (subsIter->first != subIter->first)
-						collab[movieIDMap[subIter->first] - begin][movieIDMap[subsIter->first] - begin] += 1 / log(1 + iter->second.size());
-
-				}
+				tmpSumI += pow(iter->second[rMovieIDMap[i]] - aveUser[iter->first], 2);
 			}
 		}
-
-	}
-	// cout << (clock() - begin) * 1.0 / CLOCKS_PER_SEC << "s" << endl;
-	// cout << "\t calculating weights...";
-	// begin = clock();
-	// for (int i = 0; i < sizeOfItems; ++i)
-	// {
-	// 	cout << neighbor[i] << " ";
-	// }
-	// cout << endl;
-	#pragma omp parallel for collapse(2)
-	for (int i = 0; i < taskEachNode; ++i)
-	{
+		#pragma omp parallel for
 		for (int j = 0; j < sizeOfItems; ++j)
 		{
-			if (neighbor[i] != 0 && neighbor[j] != 0) {
-				weights[i][j] = 1.0 * collab[i][j] / sqrt(neighbor[i] * neighbor[j]);
-			} else {
-				weights[i][j] = 0;
+			double tmpSumJ = 0;
+			for (map<int, map<int, double>>::iterator iter = ratings.begin(); iter != ratings.end(); ++iter)
+			{
+				// printf("user: %d\n", iter->first);
+				if (iter->second.count(rMovieIDMap[j]) > 0)
+				{
+					tmpSumJ += pow(iter->second[rMovieIDMap[j]] - aveUser[iter->first], 2);
+				}
 			}
+
+			double dem = sqrt(tmpSumI * tmpSumJ);
+			double num = 0;
+			for (map<int, map<int, double>>::iterator iter = ratings.begin(); iter != ratings.end(); ++iter)
+			{
+				if (iter->second.count(rMovieIDMap[i]) > 0 && iter->second.count(rMovieIDMap[j]) > 0)
+				{
+					num += (iter->second[rMovieIDMap[i]] - aveUser[iter->first]) * (iter->second[rMovieIDMap[j]] - aveUser[iter->first]);
+				}
+			}
+			weights[i - begin][j] = num / dem;
 		}
 	}
-	// cout << (clock() - begin) * 1.0 / CLOCKS_PER_SEC << "s" << endl;
-	// cout << "\t normalizing weights...";
-	// begin = clock();
+
+
+	// normlize the weights
 	double maxInLines[taskEachNode];
 	#pragma omp parallel for
 	for (int i = 0; i < taskEachNode; ++i)
 	{
 		maxInLines[i] = *max_element(weights[i], weights[i] + sizeOfItems);
-		// printf("max in line %d is %f\n", i, maxInLines[i]);
 	}
 
 	#pragma omp parallel for collapse(2)
@@ -128,7 +138,6 @@ void calNeighAndCollab(map<int, map<int, double>> &ratings, map<int, int> & movi
 				weights[i][j] = 0;
 			}
 		}
-	// cout << (clock() - begin) * 1.0 / CLOCKS_PER_SEC << "s" << endl;
 }
 
 void saveWeights(string weightsFileName, map<int, int> & movieIDMap, double ** weights, int sizeOfItems)
@@ -161,6 +170,30 @@ void saveWeights(string weightsFileName, map<int, int> & movieIDMap, double ** w
 	cout << (clock() - begin) * 1.0 / CLOCKS_PER_SEC << "s" << endl;
 }
 
+
+void calAveRatingForItem(map<int, map<int, double>> & ratings, map<int, int> &movieIDMap, double * aveItem, int sizeOfItems)
+// aveItem is initialized
+{
+	int countOfItemRatings[sizeOfItems];
+	#pragma omp parallel for
+	for (int i = 0; i < sizeOfItems; ++i)
+	{
+		countOfItemRatings[i] = 0;
+	}
+	for (map<int, map<int, double>>::iterator iter = ratings.begin(); iter != ratings.end(); ++iter)
+	{
+		for (map<int, double>::iterator subIter = iter->second.begin(); subIter != iter->second.end(); ++subIter)
+		{
+			aveItem[movieIDMap[subIter->first]] += subIter->second;
+			countOfItemRatings[movieIDMap[subIter->first]]++;
+		}
+	}
+	#pragma omp parallel for
+	for (int i = 0; i < sizeOfItems; ++i)
+	{
+		aveItem /= countOfItemRatings[i];
+	}
+}
 
 
 void calPreference(double** preference, double** weights, map<int, map<int, double>> &ratings, map<int, int> &rMovieIDMap, int k, int sizeOfItems)
@@ -229,13 +262,11 @@ void savePreference(string preferenceFileName, map<int, int> & movieIDMap, map<i
 
 int main(int argc, char *argv[])
 {
+	// jobs distributed strategy
+	// 1 node is to calculate the average score each item get, others are to calculate the weights.
+
 	// parameters about MPI
 	int nodesNum, rank;
-	// int argcTmp = 0;
-	// char **argvTmp;
-	// argvTmp[0] = new char[strlen(argv[0]) + 1];
-	// strncpy(argvTmp[0], argv[0], strlen(argv[0]));
-	// MPI_Init(&argcTmp, &argvTmp);
 	MPI_Init(&argc, &argv);
 	MPI_Comm_size(MPI_COMM_WORLD, &nodesNum);
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
