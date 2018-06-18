@@ -86,7 +86,6 @@ void calNeighAndCollab(map<int, map<int, double>> &ratings, map<int, int> & rMov
 	#pragma omp parallel for
 	for (int i = begin; i < begin + taskEachNode; ++i)
 	{
-		printf("\n rank %d completes %f", rank, 1.0 * (i - begin) / taskEachNode);
 		double tmpSumI = 0;
 		for (map<int, map<int, double>>::iterator iter = ratings.begin(); iter != ratings.end(); ++iter)
 		{
