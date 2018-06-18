@@ -78,12 +78,14 @@ void calNeighAndCollab(map<int, map<int, double>> &ratings, map<int, int> & rMov
 		{
 			aveUser[iter->first] += subIter->second;
 		}
-		aveUser /= iter->second.size();
+		aveUser[iter->first] /= iter->second.size();
 	}
+	cout << "debug line 1" << endl;
 	// adjust cosine similarity
 	#pragma omp parallel for
 	for (int i = begin; i < begin + taskEachNode; ++i)
 	{
+		cout << "Item :" << rMovieIDMap[i] << endl;
 		double tmpSumI = 0;
 		for (map<int, map<int, double>>::iterator iter = ratings.begin(); iter != ratings.end(); ++iter)
 		{
@@ -191,12 +193,12 @@ void calAveRatingForItem(map<int, map<int, double>> & ratings, map<int, int> &mo
 	#pragma omp parallel for
 	for (int i = 0; i < sizeOfItems; ++i)
 	{
-		aveItem /= countOfItemRatings[i];
+		aveItem[i] /= countOfItemRatings[i];
 	}
 }
 
 
-void calPreference(double** preference, double** weights, map<int, map<int, double>> &ratings, map<int, int> &rMovieIDMap, int k, int sizeOfItems)
+void calPreference(double** preference, double** weights, double * aveItem, map<int, map<int, double>> &ratings, map<int, int> &rMovieIDMap, int k, int sizeOfItems)
 {
 	double maxKWeight[sizeOfItems][k];
 	int maxKIndex[sizeOfItems][k];
@@ -218,15 +220,19 @@ void calPreference(double** preference, double** weights, map<int, map<int, doub
 	begin = clock();
 	for (map<int, map<int, double>>::iterator iter = ratings.begin(); iter != ratings.end(); ++iter)
 	{
-		#pragma omp parallel for collapse(2)
+		#pragma omp parallel for
 		for (int i = 0; i < sizeOfItems; ++i)
 		{
+			double num = 0;
+			double dem = 0;
 			for (int j = 0; j < k; ++j)
 			{
 				if (iter->second.find(rMovieIDMap[maxKIndex[i][j]]) != iter->second.end()) {
-					preference[iter->first][i] += maxKWeight[i][j] * iter->second[rMovieIDMap[maxKIndex[i][j]]];
+					num += maxKWeight[i][j] * (iter->second[rMovieIDMap[maxKIndex[i][j]]] - aveItem[i]);
+					dem += abs(maxKWeight[i][j]);
 				}
 			}
+			preference[iter->first][i] = aveItem[i] + num / dem;
 		}
 	}
 	cout << (clock() - begin) * 1.0 / CLOCKS_PER_SEC << "s" << endl;
@@ -270,8 +276,9 @@ int main(int argc, char *argv[])
 	MPI_Init(&argc, &argv);
 	MPI_Comm_size(MPI_COMM_WORLD, &nodesNum);
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-	if (nodesNum <= 1) {
-		cout << "At least 2 nodes are needed." << endl;
+	if (nodesNum <= 2) {
+		cout << "At least 3 nodes are needed." << endl;
+		fflush(stdout);
 	}
 	if (rank == 0)
 	{
@@ -298,7 +305,7 @@ int main(int argc, char *argv[])
 	int sizeOfUsers, sizeOfItems;
 	sizeOfUsers = ratings.size();
 	sizeOfItems = movieMap.size();
-	int taskEachNode = ceil(1.0 * sizeOfItems / (nodesNum - 1));
+	int taskEachNode = ceil(1.0 * sizeOfItems / (nodesNum - 2));
 	double **weightsBuffer = new double*[taskEachNode];
 	if (weightsBuffer == nullptr) {
 		cout << "Memory for buffer requirement denyed.\n";
@@ -308,10 +315,9 @@ int main(int argc, char *argv[])
 		weightsBuffer[i] = new double[sizeOfItems];
 	}
 
-	// cout << "node " << rank << " ready.\n";
 	if (rank == 0)
 	{
-		double **preference = new double * [sizeOfUsers + 1], **weights = new double * [sizeOfItems], *recvBuff = new double [sizeOfItems];
+		double **preference = new double * [sizeOfUsers + 1], **weights = new double * [sizeOfItems], *recvBuff = new double [sizeOfItems], *aveItem = new double[sizeOfItems];
 		if (preference == nullptr || weights == nullptr)
 		{
 			cout << "Memory requirement in master denyed.\n";
@@ -331,24 +337,26 @@ int main(int argc, char *argv[])
 		cout << "memory fine...\n";
 		cout << "calculating weights...\n";
 		// calNeighAndCollab(ratings, movieIDMap, neighbor, collab, weights, sizeOfItems);
-		cout << "\t distributing tasks... " << nodesNum - 1 << " nodes and " << taskEachNode << " items per node.\n";
+		cout << "\t distributing tasks... " << nodesNum - 1 << " node calculating the average ratings of items with "  << nodesNum - 2 << " nodes calculating weights, " << taskEachNode << " items per node." << endl;
+		MPI_Status status;
+		cout << "\t collecting data from node " << nodesNum - 1 << " ...\n";
+		MPI_Recv(aveItem, sizeOfItems, MPI_DOUBLE, nodesNum - 1, 0, MPI_COMM_WORLD, &status);
 		// in fact, here needs no distribution, nodes can do their job according to their ranks.
 		// TODO a process bar here
-		for (int i = 1; i < nodesNum; ++i)
+		for (int i = 1; i < nodesNum - 1; ++i)
 		{
 			cout << "\t collecting data from node " << i << " ...\n";
 			// MPI_Send(nullptr, 0, MPI_DOUBLE, i, sizeOfItems, MPI_COMM_WORLD);
 			{
-				if (i != nodesNum - 1) {
+				if (i < nodesNum - 2) {
 					for (int j = 0; j < taskEachNode; ++j)
 					{
-						MPI_Status status;
 						MPI_Recv(recvBuff, sizeOfItems, MPI_DOUBLE, i, (i - 1)*taskEachNode + j, MPI_COMM_WORLD, &status);
 						// copy by line
 						memcpy(weights + ((i - 1)*taskEachNode + j)*sizeOfItems, recvBuff, sizeOfItems);
 					}
 				} else {
-					int lines = sizeOfItems - taskEachNode * (nodesNum - 2);
+					int lines = sizeOfItems - taskEachNode * (nodesNum - 3);
 					for (int j = 0; j < lines; ++j)
 					{
 						MPI_Status status;
@@ -358,15 +366,12 @@ int main(int argc, char *argv[])
 				}
 			}
 		}
-		// for (int i = 0; i < sizeOfItems; ++i)
-		// {
-		// 	cout << "man in line " << i << " is " << *max_element(weights[i], weights[i] + sizeOfItems) << endl;
-		// }
+
 		cout << "saving weights...\n";
 		// saveWeights("D:\\dataset\\MoiveLens\\ml-latest-small\\ml-latest-small\\weights.csv", movieIDMap, weights, sizeOfItems);
 		saveWeights("/mnt/d/dataset/MoiveLens/ml-latest-small/ml-latest-small/weights.csv", movieIDMap, weights, sizeOfItems);
 		cout << "calculating preference...\n";
-		calPreference(preference, weights, ratings, rMovieIDMap, k, sizeOfItems);
+		calPreference(preference, weights, aveItem , ratings, rMovieIDMap, k, sizeOfItems);
 		cout << "saving preference...\n";
 		// savePreference("D:\\dataset\\MoiveLens\\ml-latest-small\\ml-latest-small\\preference.csv", movieIDMap, rMovieIDMap, ratings, preference, sizeOfUsers, sizeOfItems);
 		savePreference("/mnt/d/dataset/MoiveLens/ml-latest-small/ml-latest-small/preference.csv", movieIDMap, rMovieIDMap, ratings, preference, sizeOfUsers, sizeOfItems);
@@ -382,7 +387,19 @@ int main(int argc, char *argv[])
 		// }
 		// delete [] weights;
 		// delete [] recvBuff;
-
+	} else if (rank == nodesNum - 1) {
+		double* aveItem = new double[sizeOfItems];
+		for (int i = 0; i < sizeOfItems; ++i)
+		{
+			aveItem[i] = 0;
+		}
+		char processorName[MPI_MAX_PROCESSOR_NAME];
+		int nameLen;
+		MPI_Get_processor_name(processorName, &nameLen);
+		printf("node %d in %s calculating average of item ratings...\n", rank, processorName);
+		calAveRatingForItem(ratings, movieIDMap, aveItem, sizeOfItems);
+		printf("node %d in %s sending average of item ratings to master...\n", rank, processorName);
+		MPI_Send(aveItem, sizeOfItems, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD);
 	} else {
 
 		// cout << "nodes here" << endl;
@@ -409,17 +426,10 @@ int main(int argc, char *argv[])
 		// calculating weights according to rank
 		clock_t begin = clock();
 		printf("Node %d calculating weights...", rank);
-		calNeighAndCollab(ratings, movieIDMap, neighbor, collab, weightsBuffer, sizeOfItems, taskEachNode * (rank - 1), taskEachNode);
+		calNeighAndCollab(ratings, rMovieIDMap, neighbor, collab, weightsBuffer, sizeOfItems, taskEachNode * (rank - 1), taskEachNode);
 		// sending weights to master
 		printf(" %f s\n", (clock() - begin) / (1.0 * CLOCKS_PER_SEC));
-		// for (int i = 0; i < 1; ++i)
-		// {
-		// 	for (int j = 0; j < sizeOfItems; ++j)
-		// 	{
-		// 		cout << weightsBuffer[i][j] << " ";
-		// 	}
-		// 	cout << endl;
-		// }
+
 		char processorName[MPI_MAX_PROCESSOR_NAME];
 		int nameLen;
 		MPI_Get_processor_name(processorName, &nameLen);
@@ -448,11 +458,11 @@ int main(int argc, char *argv[])
 		rMovieIDMap.clear();
 	}
 
-	// for (int i = 0; i < taskEachNode; i++)
-	// {
-	// 	delete [] weightsBuffer[i];
-	// }
-	// delete [] weightsBuffer;
+// for (int i = 0; i < taskEachNode; i++)
+// {
+// 	delete [] weightsBuffer[i];
+// }
+// delete [] weightsBuffer;
 	MPI_Finalize();
 
 	return 0;

@@ -191,7 +191,7 @@ void calPreference(double** preference, double** weights, map<int, map<int, doub
 			for (int j = 0; j < k; ++j)
 			{
 				if (iter->second.find(rMovieIDMap[maxKIndex[i][j]]) != iter->second.end()) {
-					preference[iter->first][i] += maxKWeight[i][j] * iter->second[rMovieIDMap[maxKIndex[i][j]]];
+					preference[iter->first][i] += maxKWeight[i][j] * 1;
 				}
 			}
 		}
