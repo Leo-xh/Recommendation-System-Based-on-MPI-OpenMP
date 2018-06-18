@@ -80,12 +80,13 @@ void calNeighAndCollab(map<int, map<int, double>> &ratings, map<int, int> & rMov
 		}
 		aveUser[iter->first] /= iter->second.size();
 	}
-	cout << "debug line 1" << endl;
 	// adjust cosine similarity
+	int rank;
+	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 	#pragma omp parallel for
 	for (int i = begin; i < begin + taskEachNode; ++i)
 	{
-		cout << "Item :" << rMovieIDMap[i] << endl;
+		printf("\n rank %d completes %f", rank, 1.0 * (i - begin) / taskEachNode);
 		double tmpSumI = 0;
 		for (map<int, map<int, double>>::iterator iter = ratings.begin(); iter != ratings.end(); ++iter)
 		{
@@ -337,7 +338,7 @@ int main(int argc, char *argv[])
 		cout << "memory fine...\n";
 		cout << "calculating weights...\n";
 		// calNeighAndCollab(ratings, movieIDMap, neighbor, collab, weights, sizeOfItems);
-		cout << "\t distributing tasks... " << nodesNum - 1 << " node calculating the average ratings of items with "  << nodesNum - 2 << " nodes calculating weights, " << taskEachNode << " items per node." << endl;
+		cout << "\t distributing tasks... node " << nodesNum - 1 << " calculating the average ratings of items with "  << nodesNum - 2 << " nodes calculating weights, " << taskEachNode << " items per node." << endl;
 		MPI_Status status;
 		cout << "\t collecting data from node " << nodesNum - 1 << " ...\n";
 		MPI_Recv(aveItem, sizeOfItems, MPI_DOUBLE, nodesNum - 1, 0, MPI_COMM_WORLD, &status);
