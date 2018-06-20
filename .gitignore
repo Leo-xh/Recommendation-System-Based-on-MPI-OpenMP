@@ -32,3 +32,5 @@
 *.app
 
 requirements.pdf
+docs
+docs\*

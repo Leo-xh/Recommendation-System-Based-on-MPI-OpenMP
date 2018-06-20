@@ -47,7 +47,7 @@ void readDataset(string ratingFileName, string movieMappingFile, map<int, map<in
 	double rating;
 	ratingfile.open(ratingFileName, ios::in);
 	getline(ratingfile, fileLine); // header
-	cout << fileLine;
+	// cout << fileLine;
 	// begin = clock();
 	// cout << "\treading ratings...";
 	while (getline(ratingfile, fileLine)) {
@@ -95,7 +95,7 @@ void calNeighAndCollab(map<int, map<int, double>> &ratings, map<int, int> & movi
 	// 	cout << neighbor[i] << " ";
 	// }
 	// cout << endl;
-	#pragma omp parallel for collapse(2)
+	// #pragma omp parallel for collapse(2)
 	for (int i = 0; i < taskEachNode; ++i)
 	{
 		for (int j = 0; j < sizeOfItems; ++j)
@@ -111,14 +111,14 @@ void calNeighAndCollab(map<int, map<int, double>> &ratings, map<int, int> & movi
 	// cout << "\t normalizing weights...";
 	// begin = clock();
 	double maxInLines[taskEachNode];
-	#pragma omp parallel for
+	// #pragma omp parallel for
 	for (int i = 0; i < taskEachNode; ++i)
 	{
 		maxInLines[i] = *max_element(weights[i], weights[i] + sizeOfItems);
 		// printf("max in line %d is %f\n", i, maxInLines[i]);
 	}
 
-	#pragma omp parallel for collapse(2)
+	// #pragma omp parallel for collapse(2)
 	for (int i = 0; i < taskEachNode; ++i)
 		for (int j = 0; j < sizeOfItems; ++j)
 		{
@@ -169,7 +169,7 @@ void calPreference(double** preference, double** weights, map<int, map<int, doub
 	int maxKIndex[sizeOfItems][k];
 	clock_t begin = clock();
 	cout << "\t calculating " << k << " best neighbors...";
-	#pragma omp parallel for collapse(2)
+	// #pragma omp parallel for collapse(2)
 	for (int i = 0; i < sizeOfItems; ++i)
 	{
 		for (int j = 0; j < k; ++j)
@@ -185,7 +185,7 @@ void calPreference(double** preference, double** weights, map<int, map<int, doub
 	begin = clock();
 	for (map<int, map<int, double>>::iterator iter = ratings.begin(); iter != ratings.end(); ++iter)
 	{
-		#pragma omp parallel for collapse(2)
+		// #pragma omp parallel for collapse(2)
 		for (int i = 0; i < sizeOfItems; ++i)
 		{
 			for (int j = 0; j < k; ++j)

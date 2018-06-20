@@ -86,8 +86,10 @@ int main(int argc, char const *argv[])
 		cout << "Usage: executable [NumberOfPrediction] [UserId]" << endl;
 		return 0;
 	}
-	string movieMapFileName = "D:\\dataset\\MoiveLens\\ml-latest-small\\ml-latest-small\\movies.csv";
-	string preferenceFileName = "D:\\dataset\\MoiveLens\\ml-latest-small\\ml-latest-small\\preference.csv";
+	// string movieMapFileName = "D:\\dataset\\MoiveLens\\ml-latest-small\\ml-latest-small\\movies.csv";
+	string movieMapFileName = "/mnt/d/dataset/MoiveLens/ml-latest-small/ml-latest-small/movies.csv";
+	// string preferenceFileName = "D:\\dataset\\MoiveLens\\ml-latest-small\\ml-latest-small\\preference.csv";
+	string preferenceFileName = "/mnt/d/dataset/MoiveLens/ml-latest-small/ml-latest-small/preference.csv";
 	int numberOfPrediction = atoi(argv[1]);
 	int userId = atoi(argv[2]);
 	auto preds = predict(preferenceFileName, numberOfPrediction, userId);
@@ -96,6 +98,7 @@ int main(int argc, char const *argv[])
 	for (size_t i = 0; i < preds.size(); ++i)
 	{
 		cout << i + 1 << ": " << movieIdMap[preds[i].movieId] << endl;
+		// << " movieId: " << preds[i].movieId << endl;
 	}
 	return 0;
 }
